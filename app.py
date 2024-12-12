@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+from datetime import datetime
+from flask_migrate import Migrate
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
@@ -29,6 +31,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+migrate = Migrate(app, db)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,6 +46,15 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+class Policy(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    version = db.Column(db.String(20), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -108,7 +120,8 @@ def admin_dashboard():
     if not current_user.is_admin:
         return redirect(url_for('user_policies'))
     users = User.query.all()
-    return render_template('admin/dashboard.html', users=users)
+    policies = Policy.query.order_by(Policy.date.desc()).all()
+    return render_template('admin/dashboard.html', users=users, policies=policies)
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
@@ -200,5 +213,71 @@ def delete_user(user_id):
     
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/admin/policies/add', methods=['POST'])
+@login_required
+def add_policy():
+    if not current_user.is_admin:
+        return redirect(url_for('user_policies'))
+    
+    try:
+        policy = Policy(
+            name=request.form.get('name'),
+            version=request.form.get('version'),
+            date=datetime.strptime(request.form.get('date'), '%Y-%m-%d'),
+            url=request.form.get('url')
+        )
+        db.session.add(policy)
+        db.session.commit()
+        flash('Policy added successfully')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error adding policy')
+        print(f"Error adding policy: {e}")
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/policies/edit/<int:policy_id>', methods=['POST'])
+@login_required
+def edit_policy(policy_id):
+    if not current_user.is_admin:
+        return redirect(url_for('user_policies'))
+    
+    policy = Policy.query.get_or_404(policy_id)
+    
+    try:
+        policy.name = request.form.get('name')
+        policy.version = request.form.get('version')
+        policy.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d')
+        policy.url = request.form.get('url')
+        
+        db.session.commit()
+        flash('Policy updated successfully')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating policy')
+        print(f"Error updating policy: {e}")
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/policies/delete/<int:policy_id>', methods=['POST'])
+@login_required
+def delete_policy(policy_id):
+    if not current_user.is_admin:
+        return redirect(url_for('user_policies'))
+    
+    policy = Policy.query.get_or_404(policy_id)
+    
+    try:
+        db.session.delete(policy)
+        db.session.commit()
+        flash('Policy deleted successfully')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting policy')
+        print(f"Error deleting policy: {e}")
+    
+    return redirect(url_for('admin_dashboard'))
+
 if __name__ == '__main__':
-    app.run(debug=True) 
+    port = int(os.getenv('PORT', 8080))
+    app.run(host='0.0.0.0', port=port) 
