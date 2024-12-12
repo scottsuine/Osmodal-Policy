@@ -152,11 +152,10 @@ def user_policies():
 
 @app.route('/admin/users/edit/<int:user_id>', methods=['POST'])
 @login_required
-def edit_user():
+def edit_user(user_id):
     if not current_user.is_admin:
         return redirect(url_for('user_policies'))
     
-    user_id = request.form.get('user_id')
     user = User.query.get_or_404(user_id)
     
     user.username = request.form.get('username')
