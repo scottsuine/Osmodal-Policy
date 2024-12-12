@@ -176,5 +176,29 @@ def edit_user(user_id):
     
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/admin/users/delete/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    if not current_user.is_admin:
+        return redirect(url_for('user_policies'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Prevent deleting self
+    if user.id == current_user.id:
+        flash('You cannot delete your own account')
+        return redirect(url_for('admin_dashboard'))
+    
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        flash('User deleted successfully')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting user')
+        print(f"Error deleting user: {e}")
+    
+    return redirect(url_for('admin_dashboard'))
+
 if __name__ == '__main__':
     app.run(debug=True) 
