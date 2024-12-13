@@ -4,183 +4,301 @@
 <div class="max-w-6xl mx-auto">
     <h2 class="text-2xl font-bold mb-6">Admin Dashboard</h2>
     
-    <!-- Add User Form --> 
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 class="text-xl font-bold mb-4">Add New User</h3>
-        <form method="POST" action="{{ url_for('add_user') }}">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
-                        Username (Email)
-                    </label>
-                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           id="username" name="username" type="email" required>
-                </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
-                        Password
-                    </label>
-                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           id="password" name="password" type="password" required>
-                </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="first_name">
-                        First Name
-                    </label>
-                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           id="first_name" name="first_name" type="text" required>
-                </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="last_name">
-                        Last Name
-                    </label>
-                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           id="last_name" name="last_name" type="text" required>
-                </div>
-            </div>
-            <div class="mt-4">
-                <label class="inline-flex items-center">
-                    <input type="checkbox" name="is_admin" class="form-checkbox h-5 w-5 text-blue-600">
-                    <span class="ml-2 text-gray-700">Is Admin</span>
-                </label>
-            </div>
-            <div class="mt-4">
-                <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                        type="submit">
-                    Add User
-                </button>
-            </div>
-        </form>
+    <!-- Navigation Menu -->
+    <div class="mb-6 border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8">
+            <button onclick="showTab('users')" 
+                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm" 
+                    id="users-tab">
+                Users Management
+            </button>
+            <button onclick="showTab('policies')" 
+                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm" 
+                    id="policies-tab">
+                Policies Management
+            </button>
+            <button onclick="showTab('assignments')" 
+                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm" 
+                    id="assignments-tab">
+                Policy Assignments
+            </button>
+        </nav>
     </div>
 
-    <!-- Users List -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h3 class="text-xl font-bold mb-4">Users</h3>
-        <div class="overflow-x-auto">
-            <table class="min-w-full table-auto">
-                <thead>
-                    <tr class="bg-gray-100">
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for user in users %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ user.first_name }} {{ user.last_name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ user.username }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {% if user.is_admin %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Admin
-                            </span>
-                            {% else %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                User
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap flex gap-2">
-                            <button onclick="openEditModal('{{ user.id }}', '{{ user.username }}', '{{ user.first_name }}', '{{ user.last_name }}', {{ user.is_admin|tojson }})"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
-                                Edit
-                            </button>
-                            <button onclick="openDeleteModal('{{ user.id }}', '{{ user.username }}')"
-                                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Users Section -->
+    <div id="users-section" class="tab-content">
+        <!-- Add User Form -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-xl font-bold mb-4">Add New User</h3>
+            <form method="POST" action="{{ url_for('add_user') }}">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
+                            Username (Email)
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="username" name="username" type="email" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
+                            Password
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="password" name="password" type="password" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="first_name">
+                            First Name
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="first_name" name="first_name" type="text" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="last_name">
+                            Last Name
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="last_name" name="last_name" type="text" required>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="is_admin" class="form-checkbox h-5 w-5 text-blue-600">
+                        <span class="ml-2 text-gray-700">Is Admin</span>
+                    </label>
+                </div>
+                <div class="mt-4">
+                    <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            type="submit">
+                        Add User
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Users List -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-xl font-bold mb-4">Users</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for user in users %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ user.first_name }} {{ user.last_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ user.username }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if user.is_admin %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Admin
+                                </span>
+                                {% else %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                    User
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap flex gap-2">
+                                <button onclick="openEditModal('{{ user.id }}', '{{ user.username }}', '{{ user.first_name }}', '{{ user.last_name }}', {{ user.is_admin|tojson }})"
+                                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
+                                    Edit
+                                </button>
+                                <button onclick="openDeleteModal('{{ user.id }}', '{{ user.username }}')"
+                                        class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- Policies Section -->
-    <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-        <h3 class="text-xl font-bold mb-4">Add New Policy</h3>
-        <form method="POST" action="{{ url_for('add_policy') }}">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div id="policies-section" class="tab-content hidden">
+        <!-- Add Policy Form -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-xl font-bold mb-4">Add New Policy</h3>
+            <form method="POST" action="{{ url_for('add_policy') }}">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="policy_name">
+                            Policy Name
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="policy_name" name="name" type="text" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="policy_version">
+                            Version
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="policy_version" name="version" type="text" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="policy_date">
+                            Date
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="policy_date" name="date" type="date" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="policy_url">
+                            URL
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                               id="policy_url" name="url" type="url" required>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            type="submit">
+                        Add Policy
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Policies List -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-xl font-bold mb-4">Policies</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for policy in policies %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ policy.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">v{{ policy.version }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ policy.date.strftime('%Y-%m-%d') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap flex gap-2">
+                                <button onclick="openEditPolicyModal('{{ policy.id }}', '{{ policy.name }}', '{{ policy.version }}', '{{ policy.date.strftime('%Y-%m-%d') }}', '{{ policy.url }}')"
+                                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
+                                    Edit
+                                </button>
+                                <button onclick="openDeletePolicyModal('{{ policy.id }}', '{{ policy.name }}')"
+                                        class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignments Section -->
+<div id="assignments-section" class="tab-content hidden">
+    <!-- Policy Assignment Form -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 class="text-xl font-bold mb-4">Assign Policies to Users</h3>
+        <form method="POST" action="{{ url_for('assign_policies') }}">
+            <div class="grid grid-cols-1 gap-4">
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="name">
-                        Policy Name
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="user_id">
+                        Select User
                     </label>
-                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           id="name" name="name" type="text" required>
+                    <select id="user_id" name="user_id" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                        <option value="">Choose a user...</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} ({{ user.username }})</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="version">
-                        Version Number
+                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                        Select Policies
                     </label>
-                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           id="version" name="version" type="text" required>
-                </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="date">
-                        Policy Date
-                    </label>
-                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           id="date" name="date" type="date" required>
-                </div>
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="url">
-                        Policy URL
-                    </label>
-                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           id="url" name="url" type="url" required>
+                    <div class="max-h-48 overflow-y-auto border rounded p-3">
+                        {% for policy in policies %}
+                            <div class="mb-2">
+                                <label class="inline-flex items-center">
+                                    <input type="checkbox" name="policy_ids" value="{{ policy.id }}" class="form-checkbox h-5 w-5 text-blue-600">
+                                    <span class="ml-2">{{ policy.name }} (v{{ policy.version }})</span>
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
             <div class="mt-4">
-                <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                        type="submit">
-                    Add Policy
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Assign Policies
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Policies List -->
-    <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-        <h3 class="text-xl font-bold mb-4">Policies</h3>
-        <div class="overflow-x-auto">
-            <table class="min-w-full table-auto">
-                <thead>
-                    <tr class="bg-gray-100">
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for policy in policies %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ policy.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ policy.version }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ policy.date.strftime('%Y-%m-%d') }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <a href="{{ policy.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">View Policy</a>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap flex gap-2">
-                            <button onclick="openPolicyEditModal('{{ policy.id }}', '{{ policy.name }}', '{{ policy.version }}', '{{ policy.date.strftime('%Y-%m-%d') }}', '{{ policy.url }}')"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
-                                Edit
-                            </button>
-                            <button onclick="openPolicyDeleteModal('{{ policy.id }}', '{{ policy.name }}')"
-                                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Policy Assignment Status -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-xl font-bold mb-4">Policy Assignment Status</h3>
+        <div class="space-y-6">
+            {% for user, assignments in assignments_by_user.items() %}
+            <div class="border rounded-lg p-4">
+                <h4 class="text-lg font-semibold mb-3">{{ user.first_name }} {{ user.last_name }} ({{ user.username }})</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full table-auto">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acknowledged Date</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for assignment in assignments %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">{{ assignment.policy.name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">v{{ assignment.policy.version }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">{{ assignment.assigned_at.strftime('%Y-%m-%d') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if assignment.status == 'acknowledged' %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Acknowledged
+                                    </span>
+                                    {% else %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        Pending
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if assignment.acknowledged_at %}
+                                        {{ assignment.acknowledged_at.strftime('%Y-%m-%-d') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
+</div>
 
     <!-- Edit User Modal -->
     <div id="editModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -269,7 +387,7 @@
                         <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                             Save Changes
                         </button>
-                        <button type="button" onclick="closePolicyEditModal()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        <button type="button" onclick="closeEditPolicyModal()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                             Cancel
                         </button>
                     </div>
@@ -289,7 +407,7 @@
                         <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                             Delete
                         </button>
-                        <button type="button" onclick="closePolicyDeleteModal()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        <button type="button" onclick="closeDeletePolicyModal()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                             Cancel
                         </button>
                     </div>
@@ -299,6 +417,30 @@
     </div>
 
     <script>
+        function showTab(tabName) {
+            // Hide all tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Show selected tab content
+            document.getElementById(`${tabName}-section`).classList.remove('hidden');
+            
+            // Update tab button styles
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('border-blue-500', 'text-blue-600');
+                button.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            });
+            
+            document.getElementById(`${tabName}-tab`).classList.remove('border-transparent', 'text-gray-500');
+            document.getElementById(`${tabName}-tab`).classList.add('border-blue-500', 'text-blue-600');
+        }
+
+        // Show users tab by default
+        document.addEventListener('DOMContentLoaded', function() {
+            showTab('users');
+        });
+
         function openEditModal(userId, username, firstName, lastName, isAdmin) {
             const modal = document.getElementById('editModal');
             const form = document.getElementById('editForm');
@@ -331,7 +473,7 @@
             document.getElementById('deleteModal').classList.add('hidden');
         }
 
-        function openPolicyEditModal(policyId, name, version, date, url) {
+        function openEditPolicyModal(policyId, name, version, date, url) {
             const modal = document.getElementById('editPolicyModal');
             const form = document.getElementById('editPolicyForm');
             
@@ -344,11 +486,11 @@
             modal.classList.remove('hidden');
         }
 
-        function closePolicyEditModal() {
+        function closeEditPolicyModal() {
             document.getElementById('editPolicyModal').classList.add('hidden');
         }
 
-        function openPolicyDeleteModal(policyId, name) {
+        function openDeletePolicyModal(policyId, name) {
             const modal = document.getElementById('deletePolicyModal');
             const form = document.getElementById('deletePolicyForm');
             const policyNameSpan = document.getElementById('deletePolicyName');
@@ -359,7 +501,7 @@
             modal.classList.remove('hidden');
         }
 
-        function closePolicyDeleteModal() {
+        function closeDeletePolicyModal() {
             document.getElementById('deletePolicyModal').classList.add('hidden');
         }
     </script>

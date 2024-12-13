@@ -56,6 +56,17 @@ class Policy(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class PolicyAssignment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    policy_id = db.Column(db.Integer, db.ForeignKey('policy.id'), nullable=False)
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    acknowledged_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), default='pending')  # pending, acknowledged
+
+    user = db.relationship('User', backref='policy_assignments')
+    policy = db.relationship('Policy', backref='assignments')
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -119,9 +130,23 @@ def logout():
 def admin_dashboard():
     if not current_user.is_admin:
         return redirect(url_for('user_policies'))
+    
     users = User.query.all()
     policies = Policy.query.order_by(Policy.date.desc()).all()
-    return render_template('admin/dashboard.html', users=users, policies=policies)
+    
+    # Group assignments by user
+    assignments_by_user = {}
+    all_assignments = PolicyAssignment.query.join(User).join(Policy).order_by(PolicyAssignment.assigned_at.desc()).all()
+    
+    for assignment in all_assignments:
+        if assignment.user not in assignments_by_user:
+            assignments_by_user[assignment.user] = []
+        assignments_by_user[assignment.user].append(assignment)
+    
+    return render_template('admin/dashboard.html', 
+                         users=users, 
+                         policies=policies, 
+                         assignments_by_user=assignments_by_user)
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
@@ -161,7 +186,9 @@ def add_user():
 def user_policies():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
-    return render_template('user/policies.html')
+    
+    assignments = PolicyAssignment.query.filter_by(user_id=current_user.id).all()
+    return render_template('user/policies.html', assignments=assignments)
 
 @app.route('/admin/users/edit/<int:user_id>', methods=['POST'])
 @login_required
@@ -275,6 +302,83 @@ def delete_policy(policy_id):
         db.session.rollback()
         flash('Error deleting policy')
         print(f"Error deleting policy: {e}")
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/assign-policies', methods=['POST'])
+@login_required
+def assign_policies():
+    if not current_user.is_admin:
+        return redirect(url_for('user_policies'))
+    
+    user_id = request.form.get('user_id')
+    policy_ids = request.form.getlist('policy_ids')
+    
+    try:
+        # Get existing assignments for the user
+        existing_assignments = PolicyAssignment.query.filter_by(
+            user_id=user_id,
+            status='pending'
+        ).all()
+        
+        # Create a set of existing policy IDs
+        existing_policy_ids = {str(assignment.policy_id) for assignment in existing_assignments}
+        
+        # Add new assignments for policies that aren't already assigned
+        for policy_id in policy_ids:
+            if policy_id not in existing_policy_ids:
+                assignment = PolicyAssignment(
+                    user_id=user_id,
+                    policy_id=policy_id
+                )
+                db.session.add(assignment)
+        
+        db.session.commit()
+        flash('Policies assigned successfully')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error assigning policies')
+        print(f"Error assigning policies: {e}")
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/acknowledge-policy/<int:assignment_id>', methods=['POST'])
+@login_required
+def acknowledge_policy(assignment_id):
+    assignment = PolicyAssignment.query.get_or_404(assignment_id)
+    
+    if assignment.user_id != current_user.id:
+        flash('Unauthorized action')
+        return redirect(url_for('user_policies'))
+    
+    try:
+        assignment.acknowledged_at = datetime.utcnow()
+        assignment.status = 'acknowledged'
+        db.session.commit()
+        flash('Policy acknowledged successfully')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error acknowledging policy')
+        print(f"Error acknowledging policy: {e}")
+    
+    return redirect(url_for('user_policies'))
+
+@app.route('/admin/assignments/unassign/<int:assignment_id>', methods=['POST'])
+@login_required
+def unassign_policy(assignment_id):
+    if not current_user.is_admin:
+        return redirect(url_for('user_policies'))
+    
+    assignment = PolicyAssignment.query.get_or_404(assignment_id)
+    
+    try:
+        db.session.delete(assignment)
+        db.session.commit()
+        flash('Policy unassigned successfully')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error unassigning policy')
+        print(f"Error unassigning policy: {e}")
     
     return redirect(url_for('admin_dashboard'))
 

@@ -7,3 +7,5 @@ gunicorn==21.2.0
 psycopg2-binary==2.9.9
 SQLAlchemy==2.0.23
 Flask-Migrate==4.0.5
+flask-login
+flask-migrate
