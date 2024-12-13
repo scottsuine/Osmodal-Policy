@@ -3,49 +3,82 @@
 {% block content %}
 <div class="max-w-6xl mx-auto">
     <h2 class="text-2xl font-bold mb-6">My Policies</h2>
-    <div class="bg-white rounded-lg shadow-md p-6">
-        {% if assignments %}
+
+    <!-- Pending Policies Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 class="text-xl font-bold mb-4">Pending Policies</h3>
+        {% if assignments|selectattr('status', 'equalto', 'pending')|list %}
             <table class="min-w-full table-auto">
                 <thead>
                     <tr class="bg-gray-100">
                         <th class="px-6 py-3 text-left">Policy Name</th>
                         <th class="px-6 py-3 text-left">Version</th>
                         <th class="px-6 py-3 text-left">Status</th>
+                        <th class="px-6 py-3 text-left">Policy Link</th>
                         <th class="px-6 py-3 text-left">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for assignment in assignments %}
+                    {% for assignment in assignments if assignment.status == 'pending' %}
                     <tr>
                         <td class="px-6 py-4">{{ assignment.policy.name }}</td>
-                        <td class="px-6 py-4">{{ assignment.policy.version }}</td>
+                        <td class="px-6 py-4">v{{ assignment.policy.version }}</td>
                         <td class="px-6 py-4">
-                            {% if assignment.status == 'acknowledged' %}
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Acknowledged on {{ assignment.acknowledged_at.strftime('%Y-%m-%d') }}
-                                </span>
-                            {% else %}
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                    Pending
-                                </span>
-                            {% endif %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Pending
+                            </span>
                         </td>
                         <td class="px-6 py-4">
-                            {% if assignment.status == 'pending' %}
-                                <form action="{{ url_for('acknowledge_policy', assignment_id=assignment.id) }}" method="POST" class="inline">
-                                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
-                                        Acknowledge
-                                    </button>
-                                </form>
-                            {% endif %}
-                            <a href="{{ assignment.policy.url }}" target="_blank" class="ml-2 text-blue-500 hover:text-blue-700">View Policy</a>
+                            <a href="{{ assignment.policy.url }}" target="_blank" class="text-blue-500 hover:text-blue-700">View Policy</a>
+                        </td>
+                        <td class="px-6 py-4">
+                            <form action="{{ url_for('acknowledge_policy', assignment_id=assignment.id) }}" method="POST" class="inline">
+                                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
+                                    Acknowledge
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         {% else %}
-            <p class="text-gray-600">No policies have been assigned to you yet.</p>
+            <p class="text-gray-600">No pending policies.</p>
+        {% endif %}
+    </div>
+
+    <!-- Acknowledged Policies Section -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-xl font-bold mb-4">Acknowledged Policies</h3>
+        {% if assignments|selectattr('status', 'equalto', 'acknowledged')|list %}
+            <table class="min-w-full table-auto">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="px-6 py-3 text-left">Policy Name</th>
+                        <th class="px-6 py-3 text-left">Version</th>
+                        <th class="px-6 py-3 text-left">Status</th>
+                        <th class="px-6 py-3 text-left">Policy Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in assignments if assignment.status == 'acknowledged' %}
+                    <tr>
+                        <td class="px-6 py-4">{{ assignment.policy.name }}</td>
+                        <td class="px-6 py-4">v{{ assignment.policy.version }}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Acknowledged on {{ assignment.acknowledged_at.strftime('%Y-%m-%d') }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <a href="{{ assignment.policy.url }}" target="_blank" class="text-blue-500 hover:text-blue-700">View Policy</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-gray-600">No acknowledged policies.</p>
         {% endif %}
     </div>
 </div>
