@@ -144,8 +144,9 @@ def logout():
 @login_required
 def admin_dashboard():
     if not current_user.is_admin:
-        return redirect(url_for('user_policies'))
+        return redirect(url_for('index'))
     
+    active_tab = request.args.get('active_tab', 'users-section')
     users = User.query.all()
     policies = Policy.query.order_by(Policy.date.desc()).all()
     
@@ -165,13 +166,14 @@ def admin_dashboard():
                          users=users, 
                          policies=policies, 
                          assignments_by_user=assignments_by_user,
-                         admin_assignments=admin_assignments)
+                         admin_assignments=admin_assignments,
+                         active_tab=active_tab)
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
 def add_user():
     if not current_user.is_admin:
-        return redirect(url_for('user_policies'))
+        return redirect(url_for('index'))
     
     username = request.form.get('username')
     password = request.form.get('password')
@@ -198,7 +200,8 @@ def add_user():
     db.session.commit()
     
     flash('User added successfully')
-    return redirect(url_for('admin_dashboard'))
+    current_tab = request.form.get('current_tab', 'users-section')
+    return redirect(url_for('admin_dashboard', active_tab=current_tab))
 
 @app.route('/policies')
 @login_required
@@ -263,7 +266,7 @@ def delete_user(user_id):
 @login_required
 def add_policy():
     if not current_user.is_admin:
-        return redirect(url_for('user_policies'))
+        return redirect(url_for('index'))
     
     try:
         policy = Policy(
@@ -281,7 +284,8 @@ def add_policy():
         flash('Error adding policy')
         print(f"Error adding policy: {e}")
     
-    return redirect(url_for('admin_dashboard'))
+    current_tab = request.form.get('current_tab', 'policies-section')
+    return redirect(url_for('admin_dashboard', active_tab=current_tab))
 
 @app.route('/admin/policies/edit/<int:policy_id>', methods=['POST'])
 @login_required
@@ -333,7 +337,7 @@ def delete_policy(policy_id):
 @login_required
 def assign_policies():
     if not current_user.is_admin:
-        return redirect(url_for('user_policies'))
+        return redirect(url_for('index'))
     
     user_id = request.form.get('user_id')
     policy_ids = request.form.getlist('policy_ids')
@@ -364,7 +368,8 @@ def assign_policies():
         flash('Error assigning policies')
         print(f"Error assigning policies: {e}")
     
-    return redirect(url_for('admin_dashboard'))
+    current_tab = request.form.get('current_tab', 'assignments-section')
+    return redirect(url_for('admin_dashboard', active_tab=current_tab))
 
 @app.route('/acknowledge-policy/<int:assignment_id>', methods=['POST'])
 @login_required

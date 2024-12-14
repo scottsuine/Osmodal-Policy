@@ -27,7 +27,7 @@
         <!-- Add User Form -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h3 class="text-xl font-bold mb-4">Add New User</h3>
-            <form method="POST" action="{{ url_for('add_user') }}">
+            <form method="POST" action="{{ url_for('add_user') }}" onsubmit="return addCurrentTabToForm(this)">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
@@ -125,7 +125,7 @@
         <!-- Add Policy Form -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h3 class="text-xl font-bold mb-4">Add New Policy</h3>
-            <form method="POST" action="{{ url_for('add_policy') }}">
+            <form method="POST" action="{{ url_for('add_policy') }}" onsubmit="return addCurrentTabToForm(this)">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-gray-700 text-sm font-bold mb-2" for="policy_reference">
@@ -171,34 +171,6 @@
                 </div>
             </form>
         </div>
-        <!-- Excel Upload Form -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 class="text-xl font-bold mb-4">Upload Policies from Excel</h3>
-        <form method="POST" action="{{ url_for('upload_policies') }}" enctype="multipart/form-data">
-            <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="excel_file">
-                    Select Excel File
-                </label>
-                <input type="file" 
-                    id="excel_file" 
-                    name="file" 
-                    accept=".xlsx, .xls"
-                    class="block w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-full file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-blue-50 file:text-blue-700
-                            hover:file:bg-blue-100"
-                    required>
-            </div>
-            <div>
-                <button type="submit" 
-                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                    Upload and Process
-                </button>
-            </div>
-        </form>
-    </div>
         <!-- Policies List -->
         <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-xl font-bold mb-4">Policies</h3>
@@ -243,7 +215,7 @@
     <!-- Policy Assignment Form -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <h3 class="text-xl font-bold mb-4">Assign Policies to Users</h3>
-        <form method="POST" action="{{ url_for('assign_policies') }}">
+        <form method="POST" action="{{ url_for('assign_policies') }}" onsubmit="return addCurrentTabToForm(this)">
             <div class="grid grid-cols-1 gap-4">
                 <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2" for="user_id">
@@ -282,14 +254,20 @@
 
     <!-- Policy Assignment Status -->
     <div class="bg-white rounded-lg shadow-md p-6">
-        <h3 class="text-xl font-bold mb-4">Policy Assignment Status</h3>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">Policy Assignment Status</h3>
+            <button onclick="printAssignmentStatus()" 
+                    class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                <i class="fas fa-print mr-2"></i>Print Status
+            </button>
+        </div>
         <div class="space-y-6">
             {% for user, assignments in assignments_by_user.items() %}
             <div class="border rounded-lg p-4">
                 <h4 class="text-lg font-semibold mb-3">{{ user.first_name }} {{ user.last_name }} ({{ user.username }})</h4>
                 <div class="overflow-x-auto">
                     <table class="min-w-full table-auto">
-                        
+                            </div>
     <tr class="bg-gray-50">
         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy</th>
         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
@@ -591,7 +569,10 @@
 
         // Show first tab by default
         document.addEventListener('DOMContentLoaded', function() {
-            switchTab('users-section');
+            const activeTab = '{{ active_tab }}';
+            if (activeTab) {
+                switchTab(activeTab);
+            }
         });
 
         function openEditModal(userId, username, firstName, lastName, isAdmin) {
@@ -673,6 +654,108 @@
 
 function closeUnassignPolicyModal() {
     document.getElementById('unassignPolicyModal').classList.add('hidden');
+}
+
+function printAssignmentStatus() {
+    const printWindow = window.open('', '_blank');
+    const today = new Date().toLocaleDateString();
+    
+    // Generate the print-friendly content
+    let content = `
+        <html>
+        <head>
+            <title>Policy Assignment Status</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f5f5f5; }
+                h2 { margin-bottom: 20px; }
+                .user-section { margin-bottom: 30px; }
+                .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+                .date { text-align: right; }
+                @media print {
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h2>Policy Assignment Status</h2>
+                <div class="date">Date: ${today}</div>
+            </div>
+    `;
+
+    // Get all user sections
+    const userSections = document.querySelectorAll('.border.rounded-lg.p-4');
+    userSections.forEach(section => {
+        const userName = section.querySelector('h4').textContent;
+        const originalTable = section.querySelector('table');
+        
+        // Create a new table without the Actions column
+        const newTable = document.createElement('table');
+        newTable.className = originalTable.className;
+        
+        // Copy headers except for Actions
+        const headers = Array.from(originalTable.querySelectorAll('th'));
+        const headerRow = document.createElement('tr');
+        headers.slice(0, -1).forEach(header => {
+            const th = document.createElement('th');
+            th.textContent = header.textContent;
+            th.className = header.className;
+            headerRow.appendChild(th);
+        });
+        
+        const thead = document.createElement('thead');
+        thead.appendChild(headerRow);
+        newTable.appendChild(thead);
+        
+        // Copy rows except for Actions column
+        const tbody = document.createElement('tbody');
+        const rows = Array.from(originalTable.querySelectorAll('tbody tr'));
+        rows.forEach(row => {
+            const newRow = document.createElement('tr');
+            const cells = Array.from(row.querySelectorAll('td'));
+            cells.slice(0, -1).forEach(cell => {
+                const td = document.createElement('td');
+                td.innerHTML = cell.innerHTML;
+                td.className = cell.className;
+                newRow.appendChild(td);
+            });
+            tbody.appendChild(newRow);
+        });
+        newTable.appendChild(tbody);
+        
+        content += `
+            <div class="user-section">
+                <h3>${userName}</h3>
+                ${newTable.outerHTML}
+            </div>
+        `;
+    });
+
+    content += `
+            <div class="no-print" style="margin-top: 20px; text-align: center;">
+                <button onclick="window.print();" style="padding: 10px 20px; background: #4a5568; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Print
+                </button>
+            </div>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+}
+
+function addCurrentTabToForm(formElement) {
+    const currentTab = document.querySelector('.tab-content:not(.hidden)').id;
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'current_tab';
+    hiddenInput.value = currentTab;
+    formElement.appendChild(hiddenInput);
+    return true;
 }
     </script>
 </div>
