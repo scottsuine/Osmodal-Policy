@@ -7,20 +7,17 @@
     <!-- Navigation Menu -->
     <div class="mb-6 border-b border-gray-200">
         <nav class="-mb-px flex space-x-8">
-            <button onclick="showTab('users')" 
-                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm" 
-                    id="users-tab">
-                Users Management
+            <button onclick="switchTab('users-section')" class="tab-button px-4 py-2 rounded-lg text-gray-600 hover:text-gray-800">
+                Users
             </button>
-            <button onclick="showTab('policies')" 
-                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm" 
-                    id="policies-tab">
-                Policies Management
+            <button onclick="switchTab('policies-section')" class="tab-button px-4 py-2 rounded-lg text-gray-600 hover:text-gray-800">
+                Policies
             </button>
-            <button onclick="showTab('assignments')" 
-                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm" 
-                    id="assignments-tab">
-                Policy Assignments
+            <button onclick="switchTab('assignments-section')" class="tab-button px-4 py-2 rounded-lg text-gray-600 hover:text-gray-800">
+                Assignments
+            </button>
+            <button onclick="switchTab('my-policies')" class="tab-button px-4 py-2 rounded-lg text-gray-600 hover:text-gray-800">
+                My Policies
             </button>
         </nav>
     </div>
@@ -174,7 +171,34 @@
                 </div>
             </form>
         </div>
-
+        <!-- Excel Upload Form -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 class="text-xl font-bold mb-4">Upload Policies from Excel</h3>
+        <form method="POST" action="{{ url_for('upload_policies') }}" enctype="multipart/form-data">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="excel_file">
+                    Select Excel File
+                </label>
+                <input type="file" 
+                    id="excel_file" 
+                    name="file" 
+                    accept=".xlsx, .xls"
+                    class="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-blue-50 file:text-blue-700
+                            hover:file:bg-blue-100"
+                    required>
+            </div>
+            <div>
+                <button type="submit" 
+                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Upload and Process
+                </button>
+            </div>
+        </form>
+    </div>
         <!-- Policies List -->
         <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-xl font-bold mb-4">Policies</h3>
@@ -455,29 +479,119 @@
             </div>
         </div>
     </div>
+
+    <!-- My Policies Section -->
+    <div id="my-policies" class="tab-content hidden">
+        <!-- Pending Policies -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-xl font-bold mb-4">My Pending Policies</h3>
+            {% if admin_assignments|selectattr('status', 'equalto', 'pending')|list %}
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="px-6 py-3 text-left">Policy Name</th>
+                            <th class="px-6 py-3 text-left">Version</th>
+                            <th class="px-6 py-3 text-left">Date</th>
+                            <th class="px-6 py-3 text-left">Status</th>
+                            <th class="px-6 py-3 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assignment in admin_assignments %}
+                        {% if assignment.status == 'pending' %}
+                        <tr class="border-b">
+                            <td class="px-6 py-4">{{ assignment.policy.name }}</td>
+                            <td class="px-6 py-4">{{ assignment.policy.version }}</td>
+                            <td class="px-6 py-4">{{ assignment.policy.date.strftime('%Y-%m-%d') }}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    {{ assignment.status|title }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex space-x-4">
+                                    <form action="{{ url_for('acknowledge_policy', assignment_id=assignment.id) }}" method="POST">
+                                        <button type="submit" class="text-green-500 hover:text-green-700">Acknowledge</button>
+                                    </form>
+                                    <a href="{{ assignment.policy.url }}" target="_blank" class="text-blue-500 hover:text-blue-700">View Policy</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-gray-600">No pending policies.</p>
+            {% endif %}
+        </div>
+
+        <!-- Acknowledged Policies -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-xl font-bold mb-4">My Acknowledged Policies</h3>
+            {% if admin_assignments|selectattr('status', 'equalto', 'acknowledged')|list %}
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="px-6 py-3 text-left">Policy Name</th>
+                            <th class="px-6 py-3 text-left">Version</th>
+                            <th class="px-6 py-3 text-left">Date</th>
+                            <th class="px-6 py-3 text-left">Status</th>
+                            <th class="px-6 py-3 text-left">Acknowledged At</th>
+                            <th class="px-6 py-3 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assignment in admin_assignments %}
+                        {% if assignment.status == 'acknowledged' %}
+                        <tr class="border-b">
+                            <td class="px-6 py-4">{{ assignment.policy.name }}</td>
+                            <td class="px-6 py-4">{{ assignment.policy.version }}</td>
+                            <td class="px-6 py-4">{{ assignment.policy.date.strftime('%Y-%m-%d') }}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    {{ assignment.status|title }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">{{ assignment.acknowledged_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="px-6 py-4">
+                                <a href="{{ assignment.policy.url }}" target="_blank" class="text-blue-500 hover:text-blue-700">View Policy</a>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-gray-600">No acknowledged policies.</p>
+            {% endif %}
+        </div>
+    </div>
+
     <script>
-        function showTab(tabName) {
-            // Hide all tab content
+        function switchTab(tabId) {
+            // Hide all tab contents
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.add('hidden');
             });
             
-            // Show selected tab content
-            document.getElementById(`${tabName}-section`).classList.remove('hidden');
-            
-            // Update tab button styles
+            // Remove active class from all tab buttons
             document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('border-blue-500', 'text-blue-600');
-                button.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                button.classList.remove('bg-blue-500', 'text-white');
+                button.classList.add('text-gray-600', 'hover:text-gray-800');
             });
             
-            document.getElementById(`${tabName}-tab`).classList.remove('border-transparent', 'text-gray-500');
-            document.getElementById(`${tabName}-tab`).classList.add('border-blue-500', 'text-blue-600');
+            // Show selected tab content
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            // Highlight selected tab button
+            document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.remove('text-gray-600', 'hover:text-gray-800');
+            document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('bg-blue-500', 'text-white');
         }
 
-        // Show users tab by default
+        // Show first tab by default
         document.addEventListener('DOMContentLoaded', function() {
-            showTab('users');
+            switchTab('users-section');
         });
 
         function openEditModal(userId, username, firstName, lastName, isAdmin) {
@@ -542,23 +656,6 @@
         }
         function closeDeletePolicyModal() {
     document.getElementById('deletePolicyModal').classList.add('hidden');
-}
-
-        function openUnassignPolicyModal(assignmentId, policyName, userName) {
-    const modal = document.getElementById('unassignPolicyModal');
-    const form = document.getElementById('unassignPolicyForm');
-    const policyNameSpan = document.getElementById('unassignPolicyName');
-    const userNameSpan = document.getElementById('unassignUserName');
-    
-    form.action = `/admin/assignments/unassign/${assignmentId}`;
-    policyNameSpan.textContent = policyName;
-    userNameSpan.textContent = userName;
-    
-    modal.classList.remove('hidden');
-}
-
-function closeUnassignPolicyModal() {
-    document.getElementById('unassignPolicyModal').classList.add('hidden');
 }
 
         function openUnassignPolicyModal(assignmentId, policyName, userName) {

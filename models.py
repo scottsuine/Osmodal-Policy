@@ -5,4 +5,5 @@ class Policy(db.Model):
     date = db.Column(db.Date, nullable=False)
     url = db.Column(db.String(500), nullable=False)
     reference_number = db.Column(db.String(50), nullable=False)
-    assignments = db.relationship('PolicyAssignment', backref='policy', lazy=True) 
+    assignments = db.relationship('PolicyAssignment', backref='policy', 
+                                lazy=True, cascade='all, delete-orphan') 

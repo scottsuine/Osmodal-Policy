@@ -5,6 +5,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from datetime import datetime
 from flask_migrate import Migrate
+from werkzeug.utils import secure_filename
+import pandas as pd
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
@@ -15,18 +17,22 @@ if database_url:
     # Replace postgres:// with postgresql:// for SQLAlchemy
     database_url = database_url.replace("postgres://", "postgresql://", 1)
     print(f"Database URL configured: {database_url[:15]}...")  # Log partial URL for debugging
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_size': 5,
+        'pool_timeout': 30,
+        'pool_recycle': 1800,
+    }
 else:
     print("WARNING: No DATABASE_URL found, using SQLite")
     database_url = 'sqlite:///users.db'
+    # SQLite-specific configuration without pooling options
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+    }
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_size': 5,
-    'pool_timeout': 30,
-    'pool_recycle': 1800,
-}
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -42,13 +48,14 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False)
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='sha256')
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
 class Policy(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    reference_number = db.Column(db.String(20), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     version = db.Column(db.String(20), nullable=False)
     date = db.Column(db.Date, nullable=False)
@@ -71,25 +78,28 @@ class PolicyAssignment(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Create tables and admin user
+# Create tables and admin user only if they don't exist
 with app.app_context():
-    try:
-        db.create_all()
-        # Check if admin user exists
-        admin = User.query.filter_by(username="scott.suine@osmodal.com").first()
-        if not admin:
-            admin = User(
-                username="scott.suine@osmodal.com",
-                first_name="Scott",
-                last_name="Suine",
-                is_admin=True
-            )
-            admin.set_password("jack8765")
-            db.session.add(admin)
-            db.session.commit()
-    except Exception as e:
-        print(f"Database initialization error: {e}")
-        raise e
+    # Let migrations handle table creation instead
+    # db.create_all()  # Comment out or remove this line
+    
+    # Check if admin user exists
+    admin = User.query.filter_by(username="scott.suine@osmodal.com").first()
+    if not admin:
+        # Create admin user
+        admin = User(
+            username="scott.suine@osmodal.com",
+            first_name="Scott",
+            last_name="Suine",
+            is_admin=True
+        )
+        admin.set_password("jack8765")
+        db.session.add(admin)
+        db.session.commit()
+
+    # Remove or comment out the test policy creation code
+    # test_policy1 = Policy(...)
+    # ...
 
 @app.route('/')
 def index():
@@ -101,23 +111,28 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('user_policies'))
+    
     if request.method == 'POST':
-        try:
-            username = request.form.get('username')
-            password = request.form.get('password')
-            user = User.query.filter_by(username=username).first()
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            flash('Logged in successfully.')
             
-            if user and user.check_password(password):
-                login_user(user)
-                if user.is_admin:
-                    return redirect(url_for('admin_dashboard'))
-                return redirect(url_for('user_policies'))
-            
-            flash('Invalid username or password')
-        except Exception as e:
-            flash(f'An error occurred during login. Please try again.')
-            print(f"Login error: {e}")  # This will show in your logs
-    return render_template('auth/login.html')
+            if user.is_admin:
+                return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('user_policies'))
+        
+        flash('Invalid username or password')
+    
+    return render_template('login.html')
 
 @app.route('/logout')
 @login_required
@@ -134,6 +149,9 @@ def admin_dashboard():
     users = User.query.all()
     policies = Policy.query.order_by(Policy.date.desc()).all()
     
+    # Get admin's own policy assignments
+    admin_assignments = PolicyAssignment.query.filter_by(user_id=current_user.id).all()
+    
     # Group assignments by user
     assignments_by_user = {}
     all_assignments = PolicyAssignment.query.join(User).join(Policy).order_by(PolicyAssignment.assigned_at.desc()).all()
@@ -146,7 +164,8 @@ def admin_dashboard():
     return render_template('admin/dashboard.html', 
                          users=users, 
                          policies=policies, 
-                         assignments_by_user=assignments_by_user)
+                         assignments_by_user=assignments_by_user,
+                         admin_assignments=admin_assignments)
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
@@ -248,6 +267,7 @@ def add_policy():
     
     try:
         policy = Policy(
+            reference_number=request.form.get('reference_number'),
             name=request.form.get('name'),
             version=request.form.get('version'),
             date=datetime.strptime(request.form.get('date'), '%Y-%m-%d'),
@@ -272,6 +292,7 @@ def edit_policy(policy_id):
     policy = Policy.query.get_or_404(policy_id)
     
     try:
+        policy.reference_number = request.form.get('reference_number')
         policy.name = request.form.get('name')
         policy.version = request.form.get('version')
         policy.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d')
@@ -295,12 +316,15 @@ def delete_policy(policy_id):
     policy = Policy.query.get_or_404(policy_id)
     
     try:
+        # First delete all assignments
+        PolicyAssignment.query.filter_by(policy_id=policy_id).delete()
+        # Then delete the policy
         db.session.delete(policy)
         db.session.commit()
         flash('Policy deleted successfully')
     except Exception as e:
         db.session.rollback()
-        flash('Error deleting policy')
+        flash('Error deleting policy: ' + str(e))
         print(f"Error deleting policy: {e}")
     
     return redirect(url_for('admin_dashboard'))
@@ -361,6 +385,9 @@ def acknowledge_policy(assignment_id):
         flash('Error acknowledging policy')
         print(f"Error acknowledging policy: {e}")
     
+    # Redirect based on user type
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
     return redirect(url_for('user_policies'))
 
 @app.route('/admin/assignments/unassign/<int:assignment_id>', methods=['POST'])
@@ -381,6 +408,102 @@ def unassign_policy(assignment_id):
         print(f"Error unassigning policy: {e}")
     
     return redirect(url_for('admin_dashboard'))
+
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/admin/upload-policies', methods=['POST'])
+@login_required
+def upload_policies():
+    if not current_user.is_admin:
+        flash('Unauthorized access')
+        return redirect(url_for('index'))
+
+    if 'file' not in request.files:
+        flash('No file uploaded')
+        return redirect(url_for('admin_dashboard'))
+
+    file = request.files['file']
+    if file.filename == '':
+        flash('No file selected')
+        return redirect(url_for('admin_dashboard'))
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
+
+        try:
+            # Read Excel file
+            df = pd.read_excel(filepath)
+            
+            # Process each row
+            for _, row in df.iterrows():
+                # Convert Modified date to proper format
+                date_str = row['Modified'].split()[0]  # Get only the date part
+                policy_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+                # Create new policy
+                policy = Policy(
+                    reference_number=str(row['Policy Reference No.']),
+                    name=row['Title'],
+                    version=str(row['Version']),
+                    url=row['Name'],
+                    date=policy_date
+                )
+                db.session.add(policy)
+
+            db.session.commit()
+            flash('Policies uploaded successfully')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error processing file: {str(e)}')
+            print(f"Error processing Excel file: {e}")
+
+        finally:
+            # Clean up uploaded file
+            os.remove(filepath)
+
+    else:
+        flash('Invalid file type. Please upload an Excel file (.xlsx or .xls)')
+
+    return redirect(url_for('admin_dashboard'))
+
+@app.cli.command("create-admin")
+def create_admin():
+    """Create an admin user from environment variables."""
+    admin_email = os.getenv('ADMIN_EMAIL', 'admin@example.com')
+    admin_password = os.getenv('ADMIN_PASSWORD', 'adminpassword')
+    
+    # Check if admin already exists
+    admin = User.query.filter_by(username=admin_email).first()
+    if admin:
+        print("Admin user already exists")
+        return
+    
+    # Create new admin user
+    admin = User(
+        username=admin_email,
+        first_name='Admin',
+        last_name='User',
+        is_admin=True
+    )
+    admin.set_password(admin_password)
+    
+    db.session.add(admin)
+    try:
+        db.session.commit()
+        print(f"Admin user created successfully: {admin_email}")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating admin user: {e}")
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))

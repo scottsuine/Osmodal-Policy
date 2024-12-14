@@ -23,6 +23,8 @@ primary_region = 'syd'
 
 [env]
   PORT = "8080"
+  FLASK_APP = "app.py"
+  FLASK_ENV = "production"
 
 [[services]]
   internal_port = 8080
