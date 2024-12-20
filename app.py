@@ -7,6 +7,11 @@ from datetime import datetime
 from flask_migrate import Migrate
 from werkzeug.utils import secure_filename
 import pandas as pd
+from msal import ConfidentialClientApplication
+from flask_session import Session
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
@@ -46,6 +51,7 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    auth_method = db.Column(db.String(20), default='local')  # 'local' or 'microsoft'
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password, method='sha256')
@@ -509,6 +515,57 @@ def create_admin():
     except Exception as e:
         db.session.rollback()
         print(f"Error creating admin user: {e}")
+
+@app.route('/login/microsoft')
+def microsoft_login():
+    if not session.get("flow"):
+        msal_app = ConfidentialClientApplication(
+            app.config['MS_CLIENT_ID'],
+            authority=app.config['MS_AUTHORITY'],
+            client_credential=app.config['MS_CLIENT_SECRET']
+        )
+        
+        flow = msal_app.initiate_auth_code_flow(
+            app.config['MS_SCOPE'],
+            redirect_uri=request.base_url.replace('/login/microsoft', app.config['MS_REDIRECT_PATH'])
+        )
+        session["flow"] = flow
+        return redirect(flow["auth_uri"])
+    return redirect(url_for('index'))
+
+@app.route('/auth/microsoft/callback')
+def microsoft_callback():
+    if not session.get("flow"):
+        return redirect(url_for('login'))
+    
+    flow = session.get("flow")
+    msal_app = ConfidentialClientApplication(
+        app.config['MS_CLIENT_ID'],
+        authority=app.config['MS_AUTHORITY'],
+        client_credential=app.config['MS_CLIENT_SECRET']
+    )
+    
+    result = msal_app.acquire_token_by_auth_code_flow(flow, request.args)
+    if "error" in result:
+        flash(f"Error: {result.get('error_description', 'Unknown error')}")
+        return redirect(url_for('login'))
+    
+    # Get user info from Microsoft Graph
+    user_email = result.get('id_token_claims', {}).get('preferred_username')
+    
+    if not user_email:
+        flash('Could not get user email from Microsoft')
+        return redirect(url_for('login'))
+    
+    # Check if user exists in our database
+    user = User.query.filter_by(username=user_email).first()
+    if not user:
+        flash('User not registered in the system. Please contact your administrator.')
+        return redirect(url_for('login'))
+    
+    login_user(user)
+    flash('Logged in successfully via Microsoft')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
